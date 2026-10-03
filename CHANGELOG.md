@@ -13,6 +13,26 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.3] - package 1.3.22
+
+### Fixed
+- `utils.py`: `merge_dict()` wrote through its `dict1` argument
+  (`dict1[key] = {}`) instead of only building `new_dict`, which could
+  permanently corrupt the shared `SYSTEM_DEFAULT_CONFIG` module-level
+  singleton for the rest of the process when a config override supplied
+  a malformed nested-dict value. `build_effective_config()` relies on
+  `merge_dict` being read-only, and `pipower5_buzz_sequence` is the one
+  default config value shaped as a nested dict in production. `dict1` is
+  now never mutated, and a type mismatch (e.g. a dict override where the
+  default is a scalar) falls back to an empty base instead of crashing.
+  (#9, partial)
+
+### Added
+- Regression test `tests/test_cli_show_config.py::test_merge_dict_readonly_nested`,
+  closing the coverage gap identified in #12 (the existing
+  `test_readonly_defaults` only exercises a flat-key override and could
+  never have caught this).
+
 ## [fork-v0.1.2] - package 1.3.21
 
 ### Fixed
