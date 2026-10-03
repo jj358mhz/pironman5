@@ -13,6 +13,18 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.5] - package 1.3.24
+
+### Added
+- `doctor.py`: new check that `/opt/pironman5/config.json` exists and is
+  valid JSON. `--fix` resets an empty/corrupt file to `{"system": {}}`;
+  without `--fix` it's reported as a failure explaining that the service
+  won't start correctly. Closes #10.
+- Test coverage for `run_doctor()`'s orchestration logic: the new
+  config.json check (missing/empty/corrupt/valid, with and without
+  `--fix`), plus a broad regression guard asserting every `Result.detail`
+  in any `run_doctor()` output - fix or no-fix - is a string. Closes #11.
+
 ## [fork-v0.1.4] - package 1.3.23
 
 ### Fixed
