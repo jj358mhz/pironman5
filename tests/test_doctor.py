@@ -1,10 +1,12 @@
 """Tests for pironman5.doctor — InfluxDB upgrade repair helpers."""
+import json
 import os
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pironman5.doctor import find_duplicate_keys, _comment_out_duplicates
+from pironman5.doctor import find_duplicate_keys, _comment_out_duplicates, run_doctor
 
 
 # A config file mangled by upgrading from 1.2.x: the legacy dashboard
@@ -90,3 +92,54 @@ def test_clean_config_has_no_duplicates(tmp_path):
 
 def test_missing_file_is_not_an_error(tmp_path):
     assert find_duplicate_keys(os.path.join(str(tmp_path), "nope.conf")) == []
+
+
+def _fake_run(cmd):
+    """Stand in for pironman5.doctor._run - no real subprocess calls.
+
+    Reports influxd as installed, and the influxd.service already active
+    and enabled, so run_doctor's fix path only has to create the (missing
+    in this sandbox) /var/lib/influxdb data directory - everything else
+    (config file, pironman5.service, work/log dirs) legitimately doesn't
+    exist here, so those checks naturally skip themselves without any
+    further mocking.
+    """
+    if cmd.startswith("command -v influxd"):
+        return 0, "/usr/bin/influxd"
+    if cmd.startswith("systemctl is-active"):
+        return 0, "active"
+    if cmd.startswith("systemctl is-enabled"):
+        return 0, "enabled"
+    if cmd.startswith("mkdir -p"):
+        return 0, ""
+    return 0, ""
+
+
+def _run_doctor_fix_json(reachable_then):
+    """Run `pironman5 doctor --fix --json` with _run/_influxdb_reachable
+    mocked out, and return the parsed JSON result list."""
+    with patch("pironman5.doctor._run", side_effect=_fake_run), \
+         patch("pironman5.doctor._influxdb_reachable", side_effect=reachable_then), \
+         patch("builtins.print") as mock_print:
+        run_doctor(fix=True, as_json=True)
+    printed = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
+    return json.loads(printed)["results"]
+
+
+def test_doctor_fix_reports_detail_as_string_when_reachable():
+    """Regression test for the trailing-comma bug: result.detail for the
+    influxdb HTTP API check must be a str, not a 1-element tuple, when the
+    re-verify pass finds InfluxDB reachable."""
+    results = _run_doctor_fix_json(reachable_then=[False, True])
+    api_result = next(r for r in results if r["name"].startswith("influxdb HTTP API"))
+    assert api_result["detail"] == "PONG"
+    assert isinstance(api_result["detail"], str)
+
+
+def test_doctor_fix_reports_detail_as_string_when_unreachable():
+    """Same regression test, for the 'still unreachable' branch of the
+    same ternary."""
+    results = _run_doctor_fix_json(reachable_then=[False, False])
+    api_result = next(r for r in results if r["name"].startswith("influxdb HTTP API"))
+    assert api_result["detail"] == "no response - check journalctl -u influxdb"
+    assert isinstance(api_result["detail"], str)

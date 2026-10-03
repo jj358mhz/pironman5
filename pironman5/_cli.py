@@ -130,7 +130,7 @@ def main():
     variant_parser.add_argument("--list", action="store_true", help="List available variants")
     variant_parser.add_argument("--current", action="store_true", help="Show current variant")
     plugin_parser = subparsers.add_parser("plugin", help="Manage plugins (e.g. pipower5)")
-    plugin_sub = plugin_parser.add_subparsers(dest="plugin_action")
+    plugin_sub = plugin_parser.add_subparsers(dest="plugin_action", required=True)
     plugin_list = plugin_sub.add_parser("list", help="List installed plugins")
     plugin_install = plugin_sub.add_parser("install", help="Install a plugin")
     plugin_install.add_argument("plugin_name", help="Plugin name (e.g. pipower5)")
@@ -629,7 +629,7 @@ def main():
         if args.subcommand == "pipower5":
             cmd = [
                 "pipower5",
-                "-cp", CONFIG_PATH,
+                "-cp", config_path,
                 *remaining_args
             ]
             try:

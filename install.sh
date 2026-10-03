@@ -85,7 +85,7 @@ while [ $# -gt 0 ]; do
         --cn) USE_CN_MIRROR=true ;;
         --variant=*) ARG_VARIANT="${1#*=}" ;;
         --variant) shift; ARG_VARIANT="$1" ;;
-        --plugin) shift; INSTALL_PLUGIN="$1"; INSTALL_PIPOWER5=true; INSTALL_PLUGIN="pipower5" ;;
+        --plugin) INSTALL_PLUGIN="pipower5"; INSTALL_PIPOWER5=true ;;
         --pipower5-branch) shift; PIPOWER5_BRANCH_ARG="$1" ;;
         --pironman5-branch) shift; BRANCH_OVERRIDE="$1" ;;
     esac
