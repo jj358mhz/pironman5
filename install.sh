@@ -10,6 +10,10 @@
 #   # China mirror (Gitee):
 #   curl -sSL https://gitee.com/sunfounder/pironman5/raw/v1/install.sh | sudo bash -s -- --cn
 #   curl -sSL https://gitee.com/sunfounder/pironman5/raw/v1/install.sh | sudo bash -s -- --cn --variant base
+#   # Install the pironman5 package itself from a fork (pm_auto/pm_dashboard/
+#   # sf_rpi_status/pipower5 still come from sunfounder):
+#   curl -sSL https://raw.githubusercontent.com/<user>/pironman5/v1/install.sh | \
+#     sudo bash -s -- --variant base --pironman5-repo https://github.com/<user>/pironman5.git
 # (Safe to run directly — interactive prompts read from /dev/tty)
 # ============================================================
 
@@ -74,6 +78,7 @@ NO_AUTOLOGIN=false
 SKIP_HISTORY_MIGRATION=false
 PIPOWER5_BRANCH_ARG=""
 BRANCH_OVERRIDE=""
+PIRONMAN5_REPO_ARG=""
 # USE_CN_MIRROR already pre-scanned above (before framework download)
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -88,6 +93,7 @@ while [ $# -gt 0 ]; do
         --plugin) INSTALL_PLUGIN="pipower5"; INSTALL_PIPOWER5=true ;;
         --pipower5-branch) shift; PIPOWER5_BRANCH_ARG="$1" ;;
         --pironman5-branch) shift; BRANCH_OVERRIDE="$1" ;;
+        --pironman5-repo) shift; PIRONMAN5_REPO_ARG="$1" ;;
     esac
     shift
 done
@@ -120,6 +126,14 @@ fi
 # Usage: PIRONMAN5_BRANCH=fix/promax curl ... | bash -s -- --variant pro-max
 # BRANCH_OVERRIDE set via --pironman5-branch, or env, or empty
 BRANCH_OVERRIDE="${BRANCH_OVERRIDE:-${PIRONMAN5_BRANCH:-}}"
+
+# Repo override - clone the pironman5 package itself from a fork, while
+# pm_auto/pm_dashboard/sf_rpi_status/pipower5 still come from sunfounder
+# (GIT_REPO below), since forking pironman5 doesn't fork those too.
+# Usage: curl ... | sudo bash -s -- --variant promax \
+#          --pironman5-repo https://github.com/<user>/pironman5.git
+# or:    PIRONMAN5_REPO=https://github.com/<user>/pironman5.git curl ... | sudo bash
+PIRONMAN5_REPO_OVERRIDE="${PIRONMAN5_REPO_ARG:-${PIRONMAN5_REPO:-}}"
 
 
 
@@ -212,13 +226,33 @@ else
     GIT_RAW_SEP="/"
     PIPOWER5_DTBO_URL="https://github.com/sunfounder/pipower5/raw/refs/heads/main/sunfounder-pipower5.dtbo"
 fi
+
+# Resolve where the pironman5 repo itself is cloned from. Defaults to
+# GIT_REPO (sunfounder/Gitee mirror, same as every other component);
+# --pironman5-repo/PIRONMAN5_REPO overrides just this one clone, so you
+# can point at a personal fork without needing forks of pm_auto,
+# pm_dashboard, sf_rpi_status or pipower5 too.
+if [ -n "$PIRONMAN5_REPO_OVERRIDE" ]; then
+    PIRONMAN5_GIT_URL="$PIRONMAN5_REPO_OVERRIDE"
+    # Derive the matching raw-content base for the version check below,
+    # e.g. https://github.com/<user>/pironman5(.git)? -> raw.githubusercontent.com/<user>/
+    _pironman5_owner_url="${PIRONMAN5_REPO_OVERRIDE%.git}"
+    _pironman5_owner_url="${_pironman5_owner_url%/pironman5}"
+    PIRONMAN5_RAW_BASE="https://raw.githubusercontent.com/${_pironman5_owner_url#https://github.com/}/"
+    PIRONMAN5_RAW_SEP="/"
+else
+    PIRONMAN5_GIT_URL="${GIT_REPO}pironman5"
+    PIRONMAN5_RAW_BASE="$GIT_RAW_BASE"
+    PIRONMAN5_RAW_SEP="$GIT_RAW_SEP"
+fi
+
 # ============================================================
 # Package Versions
 # ============================================================
-# Fetch pironman5 version from GitHub/Gitee
+# Fetch pironman5 version from GitHub/Gitee (or the --pironman5-repo fork)
 PIRONMAN5_VERSION="unknown"
 _fetch_version() {
-    local _vurl="${GIT_RAW_BASE}pironman5${GIT_RAW_SEP}${1}/pironman5/version.py"
+    local _vurl="${PIRONMAN5_RAW_BASE}pironman5${PIRONMAN5_RAW_SEP}${1}/pironman5/version.py"
     local _vraw
     _vraw=$(curl -fsSL "$_vurl" 2>/dev/null) || return 1
     PIRONMAN5_VERSION=$(echo "$_vraw" | awk '/__version__/ { gsub(/[^0-9.]/, ""); print }')
@@ -460,7 +494,7 @@ RUN "DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip python3-venv 
 
 TITLE "Clone pironman5 repository"
 RUN "rm -rf ${HOME}/pironman5" "Remove existing pironman5 directory"
-RUN "git clone -b ${branch} --depth=1 ${GIT_REPO}pironman5 ${HOME}/pironman5" "Clone pironman5"
+RUN "git clone -b ${branch} --depth=1 ${PIRONMAN5_GIT_URL} ${HOME}/pironman5" "Clone pironman5"
 if [ "$IS_CONTAINER" = false ]; then
     RUN "chown -R ${USERNAME}:${USERNAME} ${HOME}/pironman5" "Set repo ownership"
 fi

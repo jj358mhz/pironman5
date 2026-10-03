@@ -13,6 +13,23 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.6] - package 1.3.25
+
+### Added
+- `install.sh`: new `--pironman5-repo <url>` flag (and matching
+  `PIRONMAN5_REPO` environment variable), parallel to the existing
+  `--pironman5-branch`/`PIRONMAN5_BRANCH`. Overrides where the
+  `pironman5` repo itself is cloned from, so you can install from a
+  personal fork without needing forks of `pm_auto`, `pm_dashboard`,
+  `sf_rpi_status` or `pipower5` too - those still come from sunfounder's
+  `GIT_REPO` as before. Also derives the matching raw-content base URL
+  so the installer's version report reflects the fork, not upstream.
+
+  ```bash
+  curl -sSL https://raw.githubusercontent.com/jj358mhz/pironman5/v1/install.sh | \
+    sudo bash -s -- --variant promax --pironman5-repo https://github.com/jj358mhz/pironman5.git
+  ```
+
 ## [fork-v0.1.5] - package 1.3.24
 
 ### Added
