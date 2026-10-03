@@ -36,6 +36,7 @@ Variants are assembled from modules (variants/modules/*.py). Each module registe
 | ups | core, network_info, history, oled, oled_ups_pages, pwm_fan, sf_rgb_led, pipower5 |
 | pipower5 | core, network_info, history, pipower5 |
 | promax | core, network_info, history, oled, ws2812, pi5_power_button |
+| nas | core, network_info, oled, pwm_fan, pironman_mcu, rtl8125 |
 
 ## Install Script (install.sh)
 
