@@ -13,6 +13,22 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.4] - package 1.3.23
+
+### Fixed
+- `install.sh`: "Pironman 5 NAS" was advertised in the banner and fully
+  defined in `pironman5/variants/products.py` (with its own `.dtbo` and
+  a dedicated RTL8125 2.5G NIC setup script), but the installer's
+  `--variant` validator, interactive menu, and overlay map had no `nas`
+  entry at all, making the product completely unreachable through the
+  shipped installer. Added `nas` to all three, and wired
+  `scripts/setup_rtl8125.sh` into the post-install step for that variant
+  (builds the `rtnicpg` driver and programs the NIC's EFUSE MAC address
+  if it isn't set yet). (#6)
+
+### Changed
+- `CLAUDE.md`: added the `nas` row to the variants/modules table.
+
 ## [fork-v0.1.3] - package 1.3.22
 
 ### Fixed

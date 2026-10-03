@@ -109,10 +109,10 @@ fi
 # Validate --variant
 if [ -n "$ARG_VARIANT" ]; then
     case "$ARG_VARIANT" in
-        base|mini|max|pro-max|pro_max|ups)
+        base|mini|max|pro-max|pro_max|ups|nas)
             # Normalize pro-max to pro_max for internal key
             [ "$ARG_VARIANT" = "pro-max" ] && ARG_VARIANT="pro_max" ;;
-        *) echo "Invalid variant: $ARG_VARIANT. Valid: base, mini, max, pro-max, ups"; exit 1 ;;
+        *) echo "Invalid variant: $ARG_VARIANT. Valid: base, mini, max, pro-max, ups, nas"; exit 1 ;;
     esac
 fi
 
@@ -134,6 +134,7 @@ PRODUCTS=(
     "Pironman 5 Max|max|v1"
     "Pironman 5 Pro Max|pro_max|v1"
     "Pironman 5 Mini|mini|v1"
+    "Pironman 5 NAS|nas|v1"
     "Pironman 5 UPS|ups|v1"
 )
 
@@ -150,6 +151,7 @@ PM5_OVERLAYS[base]="sunfounder-pironman5.dtbo"
 PM5_OVERLAYS[mini]="sunfounder-pironman5mini.dtbo"
 PM5_OVERLAYS[max]="sunfounder-pironman5.dtbo"
 PM5_OVERLAYS[pro_max]="sunfounder-pironman5promax.dtbo"
+PM5_OVERLAYS[nas]="sunfounder-pironman5nas.dtbo"
 
 # ============================================================
 if [ -n "$ARG_VARIANT" ]; then
@@ -637,6 +639,10 @@ if [ "$IS_CONTAINER" = false ]; then
     if has "gpio_fan_state" || has "vibration_switch"; then
         TITLE "Run post-install scripts"
         RUN "bash scripts/change_rpi.gpio_to_rpi.lgpio.sh" "Migrate RPi.GPIO to rpi.lgpio"
+    fi
+    if [ "$variant" = "nas" ]; then
+        TITLE "Configure RTL8125 2.5G NIC"
+        RUN "bash scripts/setup_rtl8125.sh" "Build rtnicpg driver and set the NIC's EFUSE MAC address"
     fi
 fi
 
