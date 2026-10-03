@@ -16,6 +16,11 @@ during that upgrade:
    'influxdb' user - cannot read/write it and dies with
    'permission denied'.
 
+Doctor also checks that /opt/pironman5/config.json itself is present
+and valid JSON - an empty or corrupt file (from an interrupted write, a
+disk-full condition, or an install step that touch'd the file before
+populating it) makes every pironman5 CLI invocation crash.
+
 'pironman5 doctor' detects all of the above (plus a few more common
 problems) and, with --fix, repairs them in place.  It is safe to run
 repeatedly.
@@ -38,6 +43,7 @@ PIRONMAN5_SERVICE = "pironman5.service"
 WORK_DIR = "/opt/pironman5"
 LOG_DIR = "/var/log/pironman5"
 PIRONMAN5_USER = "pironman5"
+CONFIG_PATH = "/opt/pironman5/config.json"
 
 STATUS_OK = "OK"
 STATUS_FIXED = "FIXED"
@@ -467,6 +473,61 @@ def run_doctor(fix=False, as_json=False):
                 )
         else:
             results.append(Result("%s owner" % path, STATUS_OK, owner))
+
+    # -- 9. config.json is valid JSON ------------------------------------
+    # An empty or corrupt config.json (interrupted write, disk full, a
+    # step that touch'd the file before populating it) makes every
+    # pironman5 CLI invocation crash with JSONDecodeError - see the
+    # update_config_file() fix history for the exact failure mode.
+    if os.path.isfile(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as handle:
+                content = handle.read()
+            if content.strip() == "":
+                raise ValueError("file is empty")
+            json.loads(content)
+        except (ValueError, OSError) as exc:
+            if fix:
+                try:
+                    with open(CONFIG_PATH, "w") as handle:
+                        json.dump({"system": {}}, handle, indent=4)
+                    results.append(
+                        Result(
+                            "config.json valid JSON",
+                            STATUS_FIXED,
+                            "was empty/corrupt (%s) - reset to {'system': {}}" % exc,
+                            fixable=True,
+                        )
+                    )
+                except OSError as write_exc:
+                    results.append(
+                        Result(
+                            "config.json valid JSON",
+                            STATUS_FAIL,
+                            str(write_exc),
+                            fixable=True,
+                        )
+                    )
+            else:
+                results.append(
+                    Result(
+                        "config.json valid JSON",
+                        STATUS_FAIL,
+                        "%s is empty or not valid JSON (%s) - the service will not "
+                        "start correctly" % (CONFIG_PATH, exc),
+                        fixable=True,
+                    )
+                )
+        else:
+            results.append(Result("config.json valid JSON", STATUS_OK, CONFIG_PATH))
+    else:
+        results.append(
+            Result(
+                "config.json valid JSON",
+                STATUS_WARN,
+                "%s does not exist yet" % CONFIG_PATH,
+            )
+        )
 
     # -- Re-verify the runtime checks after the repairs -----------------
     if fix:

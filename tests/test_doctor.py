@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+from contextlib import ExitStack
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -115,15 +116,23 @@ def _fake_run(cmd):
     return 0, ""
 
 
-def _run_doctor_fix_json(reachable_then):
-    """Run `pironman5 doctor --fix --json` with _run/_influxdb_reachable
-    mocked out, and return the parsed JSON result list."""
-    with patch("pironman5.doctor._run", side_effect=_fake_run), \
-         patch("pironman5.doctor._influxdb_reachable", side_effect=reachable_then), \
-         patch("builtins.print") as mock_print:
-        run_doctor(fix=True, as_json=True)
+def _run_doctor_json(fix=True, reachable_then=(False, True), config_path=None):
+    """Run `pironman5 doctor [--fix] --json` with _run/_influxdb_reachable
+    mocked out (and CONFIG_PATH optionally redirected to a tmp_path), and
+    return the parsed JSON result list."""
+    with ExitStack() as stack:
+        stack.enter_context(patch("pironman5.doctor._run", side_effect=_fake_run))
+        stack.enter_context(patch("pironman5.doctor._influxdb_reachable", side_effect=reachable_then))
+        mock_print = stack.enter_context(patch("builtins.print"))
+        if config_path is not None:
+            stack.enter_context(patch("pironman5.doctor.CONFIG_PATH", config_path))
+        run_doctor(fix=fix, as_json=True)
     printed = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
     return json.loads(printed)["results"]
+
+
+def _run_doctor_fix_json(reachable_then):
+    return _run_doctor_json(fix=True, reachable_then=reachable_then)
 
 
 def test_doctor_fix_reports_detail_as_string_when_reachable():
@@ -143,3 +152,69 @@ def test_doctor_fix_reports_detail_as_string_when_unreachable():
     api_result = next(r for r in results if r["name"].startswith("influxdb HTTP API"))
     assert api_result["detail"] == "no response - check journalctl -u influxdb"
     assert isinstance(api_result["detail"], str)
+
+
+def test_doctor_config_check_missing_file_is_a_warning(tmp_path):
+    config_path = str(tmp_path / "config.json")  # does not exist
+    results = _run_doctor_json(fix=False, config_path=config_path)
+    result = next(r for r in results if r["name"] == "config.json valid JSON")
+    assert result["status"] == "WARN"
+    assert not os.path.exists(config_path), "should not create the file without --fix"
+
+
+def test_doctor_config_check_empty_file_fails_without_fix(tmp_path):
+    config_path = str(tmp_path / "config.json")
+    open(config_path, "w").close()  # 0 bytes
+    results = _run_doctor_json(fix=False, config_path=config_path)
+    result = next(r for r in results if r["name"] == "config.json valid JSON")
+    assert result["status"] == "FAIL"
+    with open(config_path) as f:
+        assert f.read() == "", "should not modify the file without --fix"
+
+
+def test_doctor_config_check_empty_file_is_repaired_with_fix(tmp_path):
+    config_path = str(tmp_path / "config.json")
+    open(config_path, "w").close()  # 0 bytes
+    results = _run_doctor_json(fix=True, config_path=config_path)
+    result = next(r for r in results if r["name"] == "config.json valid JSON")
+    assert result["status"] == "FIXED"
+    with open(config_path) as f:
+        assert json.load(f) == {"system": {}}
+
+
+def test_doctor_config_check_corrupt_file_is_repaired_with_fix(tmp_path):
+    config_path = str(tmp_path / "config.json")
+    with open(config_path, "w") as f:
+        f.write('{"system": {')  # truncated/invalid JSON
+    results = _run_doctor_json(fix=True, config_path=config_path)
+    result = next(r for r in results if r["name"] == "config.json valid JSON")
+    assert result["status"] == "FIXED"
+    with open(config_path) as f:
+        assert json.load(f) == {"system": {}}
+
+
+def test_doctor_config_check_valid_file_is_ok(tmp_path):
+    config_path = str(tmp_path / "config.json")
+    with open(config_path, "w") as f:
+        json.dump({"system": {"temperature_unit": "F"}}, f)
+    results = _run_doctor_json(fix=False, config_path=config_path)
+    result = next(r for r in results if r["name"] == "config.json valid JSON")
+    assert result["status"] == "OK"
+    with open(config_path) as f:
+        # untouched - doctor must not rewrite a config that's already valid
+        assert json.load(f) == {"system": {"temperature_unit": "F"}}
+
+
+def test_doctor_results_detail_is_always_a_string(tmp_path):
+    """Broader regression guard for #1/#11: no Result in any run_doctor()
+    output - fix or no-fix - should ever have a non-string detail."""
+    config_path = str(tmp_path / "config.json")
+    with open(config_path, "w") as f:
+        json.dump({"system": {}}, f)
+    for fix in (False, True):
+        results = _run_doctor_json(fix=fix, reachable_then=[True, True], config_path=config_path)
+        for result in results:
+            assert isinstance(result["detail"], str), (
+                "%s detail is %r (%s), not a string"
+                % (result["name"], result["detail"], type(result["detail"]))
+            )
