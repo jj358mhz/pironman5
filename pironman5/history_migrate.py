@@ -429,6 +429,7 @@ def run_migrate_history(
     payload["retention_policy"] = policy
 
     query = migration_query(source, target, measurement, lower_ns, upper_ns)
+    result = None
     try:
         result = _query(None, query)
     except InfluxError as exc:
@@ -441,12 +442,13 @@ def run_migrate_history(
             return _report(as_json, payload, ["Migration failed: %s" % message])
 
     written = 0
-    for row in _series_values(result):
-        if len(row) > 1:
-            try:
-                written = int(row[1])
-            except (TypeError, ValueError):
-                written = 0
+    if result is not None:
+        for row in _series_values(result):
+            if len(row) > 1:
+                try:
+                    written = int(row[1])
+                except (TypeError, ValueError):
+                    written = 0
     payload["migrated"] = written
 
     _write_marker(
