@@ -13,6 +13,26 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.2] - package 1.3.21
+
+### Fixed
+- `doctor.py`: a stray trailing comma turned `result.detail` into a
+  1-element tuple instead of a string for the "influxdb HTTP API"
+  re-verify check after `doctor --fix`, corrupting both the text and
+  JSON output. (#1)
+- `_cli.py`: `pironman5 plugin` with no sub-subcommand crashed with
+  `AttributeError` instead of showing a usage error; the `plugin_action`
+  subparser is now marked `required=True`. (#3)
+- `_cli.py`: `pironman5 -cp <path> pipower5 ...` ignored the custom
+  config path and forwarded the hardcoded default to the `pipower5`
+  sub-CLI instead - fixed a variable-name typo (`CONFIG_PATH` vs.
+  `config_path`). (#5)
+- `install.sh`: `--plugin` read and then immediately discarded its
+  argument, and the stray extra `shift` could swallow the *next*
+  command-line flag entirely (e.g. `--plugin --container` silently
+  dropped `--container`). It's now a plain no-argument flag, matching
+  `--pipower5`. (#7)
+
 ## [fork-v0.1.1] - package 1.3.20
 
 ### Fixed

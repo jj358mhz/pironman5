@@ -484,7 +484,7 @@ def run_doctor(fix=False, as_json=False):
                 result.detail = (
                     "PONG"
                     if ok
-                    else "no response - check journalctl -u influxdb",
+                    else "no response - check journalctl -u influxdb"
                 )
 
     # -- Output ----------------------------------------------------------
