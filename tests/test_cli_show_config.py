@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pironman5.utils import build_effective_config
+from pironman5.utils import build_effective_config, merge_dict
 
 
 def test_empty_file():
@@ -82,6 +82,29 @@ def test_readonly_defaults():
     print("  Read-only (defaults not polluted): OK")
 
 
+def test_merge_dict_readonly_nested():
+    """merge_dict must not mutate dict1 for a nested-dict-shaped override.
+
+    test_readonly_defaults above only overrides a flat scalar key, which
+    can never hit the mutation path: it only triggers when the override
+    supplies a dict value for a key that isn't already present one level
+    inside an *existing* nested dict (the shape pipower5_buzz_sequence
+    has in pironman5/variants/modules/pipower5.py). Regression test for
+    the shared-singleton corruption this caused (see issue #9).
+    """
+    shared_nested = {'battery_activated': [['A4', 200]]}
+    dict1 = {'pipower5_buzz_sequence': shared_nested}
+    before = json.dumps(dict1)
+
+    dict2 = {'pipower5_buzz_sequence': {'some_new_event': {'bad': 'shape'}}}
+    merge_dict(dict1, dict2)
+
+    assert json.dumps(dict1) == before, "merge_dict mutated dict1!"
+    assert 'some_new_event' not in shared_nested, \
+        "merge_dict mutated the shared nested dict in place!"
+    print("  merge_dict read-only (nested dict not polluted): OK")
+
+
 if __name__ == "__main__":
     test_empty_file()
     test_empty_system()
@@ -90,4 +113,5 @@ if __name__ == "__main__":
     test_no_file()
     test_readonly_input()
     test_readonly_defaults()
+    test_merge_dict_readonly_nested()
     print("\nAll build_effective_config tests passed.")
