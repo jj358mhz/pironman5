@@ -2,17 +2,20 @@
 import json
 import os
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from pironman5.history_migrate import (
     NS,
+    InfluxError,
     count_query,
     migration_query,
     migration_window,
     parse_duration_ns,
     retention_days,
     rfc3339_ns,
+    run_migrate_history,
     where_clause,
 )
 
@@ -87,3 +90,34 @@ def test_queries():
     assert query.startswith('SELECT * INTO "pironman5-max"."default_policy"."history"')
     assert 'FROM "pironman5"."autogen"."history"' in query
     assert query.endswith("GROUP BY *")
+
+
+def test_run_migrate_history_survives_partial_write():
+    """Regression test: an InfluxDB 'partial write' on the SELECT INTO must
+    not crash with NameError. This is the primary scenario migrate-history
+    exists for (migrated data spans the retention-policy boundary)."""
+    now_ns = 1000 * DAY
+
+    with patch("pironman5.history_migrate._marker", return_value=None), \
+         patch("pironman5.history_migrate.list_databases", return_value=["pironman5", "pironman5-max"]), \
+         patch("pironman5.history_migrate.first_field", return_value="cpu_percent"), \
+         patch("pironman5.history_migrate.first_time", return_value=now_ns - 5 * DAY), \
+         patch("pironman5.history_migrate.count_points", return_value=5), \
+         patch("pironman5.history_migrate.ensure_retention_policy", return_value="default_policy"), \
+         patch("pironman5.history_migrate._query", side_effect=InfluxError("partial write: points beyond retention policy dropped=3")), \
+         patch("pironman5.history_migrate._write_marker") as write_marker, \
+         patch("time.time_ns", return_value=now_ns):
+        result = run_migrate_history(
+            source="pironman5",
+            target="pironman5-max",
+            days=30,
+            assume_yes=True,
+            dry_run=False,
+            as_json=True,
+        )
+
+    assert result == 0
+    assert write_marker.called
+    # migrated count falls back to 0 since the partial write means there's
+    # no usable query result, but this must not raise NameError.
+    assert write_marker.call_args[0][0]["migrated"] == 0

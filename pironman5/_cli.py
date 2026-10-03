@@ -22,7 +22,14 @@ def update_config_file(config, config_path):
     import json
     current = None
     with open(config_path, 'r') as f:
-        current = json.load(f)
+        content = f.read()
+    if content == '':
+        current = {}
+    else:
+        try:
+            current = json.loads(content)
+        except json.JSONDecodeError:
+            current = {}
     for key in config:
         if key in current:
             current[key].update(config[key])
