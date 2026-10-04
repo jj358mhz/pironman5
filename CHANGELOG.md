@@ -13,6 +13,17 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.8] - package 1.3.27
+
+### Changed
+- `CLAUDE.md`: the "Testing" section's two listed test devices
+  (`192.168.100.232`/promax, `192.168.100.131`/pipower5 standalone) were
+  stale. Replaced with `raspberrypi-scanner` (base variant), and
+  updated the deploy snippet to point at this fork's `v1` branch
+  (instead of upstream sunfounder) with a `doctor --fix` follow-up step,
+  since a restart reliably re-triggers the InfluxDB ownership issue
+  documented in `bin/pironman5.service`.
+
 ## [fork-v0.1.7] - package 1.3.26
 
 Closes the remainder of #9.
