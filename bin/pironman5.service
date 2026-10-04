@@ -7,6 +7,13 @@ Wants=influxdb.service
 
 [Service]
 Type=simple
+# Must stay root: sf_rpi_status.restart_service() runs a bare
+# "systemctl restart <service>" with no sudo prefix (pm_dashboard's
+# "restart service" feature depends on this). install.sh's dedicated
+# unprivileged "pironman5" user/group/sudoers setup exists for shutdown/
+# reboot (which do use sudo, via sf_rpi_status.shutdown()/reboot()), but
+# switching this unit to User=pironman5 would silently break the
+# restart-service feature until that upstream call adds sudo too.
 User=root
 Group=root
 WorkingDirectory=/opt/pironman5

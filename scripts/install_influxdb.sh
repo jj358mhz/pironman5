@@ -15,6 +15,7 @@ if [ $# -ge 1 ] && [ "$1" == "--uninstall" ]; then
 fi
 
 echo "Setup influxdb install source..."
+mkdir -p /etc/apt/keyrings
 curl --silent --location https://repos.influxdata.com/influxdata-archive.key | gpg --dearmor --yes -o /etc/apt/keyrings/influxdata-archive.gpg
 chmod 644 /etc/apt/keyrings/influxdata-archive.gpg
 echo 'deb [signed-by=/etc/apt/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main' | tee /etc/apt/sources.list.d/influxdata.list

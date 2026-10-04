@@ -13,6 +13,43 @@ version number.
 
 ## [Unreleased]
 
+## [fork-v0.1.7] - package 1.3.26
+
+Closes the remainder of #9.
+
+### Fixed
+- `install.sh`: the DKMS-install failure fallback unconditionally wrote
+  a Debian "trixie" apt source on *any* `apt-get install -y dkms`
+  failure, with no OS check. On a non-Debian-family system (e.g.
+  Ubuntu) this risked a mixed-release ("Frankendebian") apt
+  configuration. Now only applies on Debian/Raspberry Pi OS
+  (`ID=debian` or `ID=raspbian` in `/etc/os-release`); everywhere else
+  it fails with a clear message instead of guessing. Fixed at both of
+  the file's two (duplicated) occurrences.
+- `scripts/setup_pipower5.sh`: `useradd -g pipower5` had no preceding
+  `groupadd`, so it would fail with "group 'pipower5' does not exist"
+  on a fresh system. Added `groupadd -r pipower5` first, matching
+  `install.sh`'s own current pattern. This script is currently orphaned
+  (not referenced by `install.sh`), so there's no live impact today,
+  but it's fixed in case it's ever invoked directly or resurrected.
+- `scripts/install_influxdb.sh`: wrote the InfluxDB GPG key to
+  `/etc/apt/keyrings/influxdata-archive.gpg` without ensuring that
+  directory exists first, failing on a system where it hasn't already
+  been created by something else. Added `mkdir -p /etc/apt/keyrings`.
+
+### Changed
+- `bin/pironman5.service`: added a comment documenting *why* this unit
+  must keep running as `User=root`/`Group=root` rather than the
+  unprivileged `pironman5` user `install.sh` sets up. Verified against
+  `sf_rpi_status`'s actual source: `shutdown()`/`reboot()` use `sudo
+  systemctl poweroff/reboot -i` (would work fine unprivileged, since the
+  sudoers rule grants NOPASSWD for `/usr/bin/systemctl`), but
+  `restart_service()` runs a bare `systemctl restart <service>` with no
+  `sudo` prefix at all - switching `User=` would silently break
+  pm_dashboard's "restart service" button until that upstream call is
+  fixed to use `sudo` too. No code change here; this documents a
+  verified constraint so it isn't "fixed" into a regression later.
+
 ## [fork-v0.1.6] - package 1.3.25
 
 ### Added

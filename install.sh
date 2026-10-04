@@ -412,7 +412,7 @@ if [ "$_PLUGIN_ONLY" = true ]; then
         fi
 
         TITLE "Build and install kernel driver"
-        RUN "apt-get install -y dkms 2>&1 || { printf 'Types: deb\nURIs: http://deb.debian.org/debian/\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n' > /etc/apt/sources.list.d/debian-trixie.sources && apt-get update && apt-get install -y dkms 2>&1; }" "Install DKMS"
+        RUN "apt-get install -y dkms 2>&1 || { if grep -qE 'ID=debian|ID=raspbian' /etc/os-release 2>/dev/null; then printf 'Types: deb\nURIs: http://deb.debian.org/debian/\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n' > /etc/apt/sources.list.d/debian-trixie.sources && apt-get update && apt-get install -y dkms 2>&1; else echo 'dkms unavailable and this is not a Debian/Raspberry Pi OS system - skipping Debian trixie fallback to avoid a mixed-release apt config' >&2; false; fi; }" "Install DKMS"
         RUN "if grep -q 'ID=ubuntu' /etc/os-release 2>/dev/null; then apt-get install -y linux-headers-raspi linux-headers-\$(uname -r); else apt-get install -y linux-headers-\$(uname -r); fi" "Install kernel headers"
         RUN "cd ${PIPOWER5_SRC}/driver && make clean && make module && make dkms_install && make dtbo && modprobe pipower5 || true" "Build and install pipower5.ko"
 
@@ -578,7 +578,7 @@ if [ "$INSTALL_PIPOWER5" = true ]; then
     fi
 
     TITLE "Install PiPower5 build dependencies"
-    RUN "apt-get install -y dkms 2>&1 || { printf 'Types: deb\nURIs: http://deb.debian.org/debian/\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n' > /etc/apt/sources.list.d/debian-trixie.sources && apt-get update && apt-get install -y dkms 2>&1; }" "Install DKMS"
+    RUN "apt-get install -y dkms 2>&1 || { if grep -qE 'ID=debian|ID=raspbian' /etc/os-release 2>/dev/null; then printf 'Types: deb\nURIs: http://deb.debian.org/debian/\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n' > /etc/apt/sources.list.d/debian-trixie.sources && apt-get update && apt-get install -y dkms 2>&1; else echo 'dkms unavailable and this is not a Debian/Raspberry Pi OS system - skipping Debian trixie fallback to avoid a mixed-release apt config' >&2; false; fi; }" "Install DKMS"
     RUN "if grep -q 'ID=ubuntu' /etc/os-release 2>/dev/null; then apt-get install -y linux-headers-raspi linux-headers-\$(uname -r); else apt-get install -y linux-headers-\$(uname -r); fi" "Install kernel headers"
 
     TITLE "Build and install PiPower5 kernel driver"
