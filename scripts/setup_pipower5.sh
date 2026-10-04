@@ -89,7 +89,8 @@ fi
 mv email_templates/ /opt/pipower5/email_templates/
 rm -rf email_templates.zip email_templates/
 
-# create pipower5 user
+# create pipower5 group and user
+getent group pipower5 > /dev/null 2>&1 || groupadd -r pipower5
 if ! id -u pipower5 > /dev/null 2>&1; then
     useradd -m -g pipower5 pipower5
 fi
