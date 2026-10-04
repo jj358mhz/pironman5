@@ -52,14 +52,20 @@ PiPower5 standalone reuses pironman5 framework:
 ## Testing
 
 Test devices:
-- 192.168.100.232 — promax
-- 192.168.100.131 — pipower5 standalone
+- `raspberrypi-scanner` — base variant
 
 ```bash
-# Deploy to test device
-/opt/pironman5/venv/bin/pip3 install --force-reinstall --no-cache-dir \
-  git+https://github.com/sunfounder/pironman5.git@<branch>
-systemctl restart pironman5
+# Deploy to test device (this fork's v1 branch)
+sudo /opt/pironman5/venv/bin/pip3 install --force-reinstall --no-cache-dir \
+  git+https://github.com/jj358mhz/pironman5.git@v1
+sudo systemctl restart pironman5
+
+# Always follow a restart with doctor --fix: something in pm_auto/
+# pm_dashboard spawns its own influxd under pironman5.service (root),
+# which re-breaks /var/lib/influxdb ownership and the influxdb.service
+# unit on every restart. This is an upstream behavior, not something
+# fixed in this repo - see bin/pironman5.service's comment.
+sudo /opt/pironman5/venv/bin/pironman5 doctor --fix
 
 # Check peripherals
 curl -s http://localhost:34001/api/v1.0/get-device-info
